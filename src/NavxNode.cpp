@@ -1,65 +1,47 @@
 #include "AHRS.h"
 #include "ros/ros.h"
 #include "sensor_msgs/Imu.h"
+#include "sensor_msgs/MagneticField.h"
 
-#include <math.h>
+#include <cmath>
 
-float degToRad = M_PI / 180;
-
-float derive(float prevVal, float currVal, float prevTime, float currTime)
-{
-    return (currVal - prevVal) / (currTime - prevTime);
-}
+const uint8_t RATE = 100;
+const float degToRad = M_PI / 180;
 
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "navx_node");
     ros::NodeHandle nh;
-    ros::Publisher pub = nh.advertise<sensor_msgs::Imu>("Imu", 10);
-    ros::Rate period(10);
+    ros::Publisher imu_pub = nh.advertise<sensor_msgs::Imu>("imu/data_raw", RATE);
+    ros::Publisher mag_pub = nh.advertise<sensor_msgs::MagneticField>("imu/mag", RATE);
+    ros::Rate period(RATE);
 
-    AHRS navx = AHRS("/dev/ttyACM0");
+    AHRS navx = AHRS("/dev/ttyACM0", AHRS::SerialDataType::kRawData, RATE);
     sensor_msgs::Imu imu;
-
-    // initialize values to calculate angular velocity for the IMU message
-    float prevTime = navx.GetLastSensorTimestamp() / 1000.0;
-    float prevPitch = navx.GetPitch() * degToRad; // about x-axis (empirically y-axis)
-    float prevRoll = navx.GetRoll() * degToRad; // about y-axis (empirically x-axis)
-    float prevYaw = navx.GetYaw() * degToRad; // about z-axis
+    sensor_msgs::MagneticField mag;
 
     // fill and send message
     while (ros::ok()) {
         // header
         imu.header.frame_id = "imu";
 
-        // orientation
-        imu.orientation.x = navx.GetQuaternionX();
-        imu.orientation.y = navx.GetQuaternionY();
-        imu.orientation.z = navx.GetQuaternionZ();
-        imu.orientation.w = navx.GetQuaternionW();
-
         // linear acceleration
-        imu.linear_acceleration.x = navx.GetWorldLinearAccelX();
-        imu.linear_acceleration.y = navx.GetWorldLinearAccelY();
-        imu.linear_acceleration.z = navx.GetWorldLinearAccelZ();
+        imu.linear_acceleration.x = navx.GetRawAccelX();
+        imu.linear_acceleration.y = navx.GetRawAccelY();
+        imu.linear_acceleration.z = navx.GetRawAccelZ();
 
         // angular velocity
-        float currTime = navx.GetLastSensorTimestamp() / 1000.0;
-        float currPitch = navx.GetPitch() * degToRad;
-        float currRoll = navx.GetRoll() * degToRad;
-        float currYaw = navx.GetYaw() * degToRad;
+        imu.angular_velocity.x = navx.GetRawGyroX() * degToRad;
+        imu.angular_velocity.y = navx.GetRawGyroY() * degToRad;
+        imu.angular_velocity.z = navx.GetRawGyroZ() * degToRad;
 
-        // these are flipped based on the diagram on the sensor
-        imu.angular_velocity.y = derive(prevPitch, currPitch, prevTime, currTime);
-        imu.angular_velocity.x = derive(prevRoll, currRoll, prevTime, currTime);
-        imu.angular_velocity.z = derive(prevYaw, currYaw, prevTime, currTime);
+        // magnetic field
+        mag.magnetic_field.x = navx.GetRawMagX();
+        mag.magnetic_field.y = navx.GetRawMagY();
+        mag.magnetic_field.z = navx.GetRawMagZ();
 
-        prevTime = currTime;
-        prevPitch = currPitch;
-        prevRoll = currRoll;
-        prevYaw = currYaw;
-
-        pub.publish(imu);
+        imu_pub.publish(imu);
+        mag_pub.publish(mag);
         ros::spinOnce();
         period.sleep();
     }
