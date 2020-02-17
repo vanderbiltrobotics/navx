@@ -127,7 +127,6 @@ add_library(${PROJECT_NAME}
         src/OffsetTracker.cpp
         src/SerialIO.cpp
         src/SerialPort.cpp
-        src/TimeStamp.cpp
         )
 
 ## Add cmake target dependencies of the library
@@ -145,7 +144,7 @@ add_executable(${PROJECT_NAME}_node src/NavxNode.cpp)
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
 ## e.g. "rosrun someones_pkg node" instead of "rosrun someones_pkg someones_pkg_node"
-set_target_properties(${PROJECT_NAME}_test PROPERTIES OUTPUT_NAME node PREFIX "")
+set_target_properties(${PROJECT_NAME}_test PROPERTIES OUTPUT_NAME test PREFIX "")
 set_target_properties(${PROJECT_NAME}_node PROPERTIES OUTPUT_NAME node PREFIX "")
 
 ## Add cmake target dependencies of the executable
